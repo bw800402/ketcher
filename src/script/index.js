@@ -21,6 +21,7 @@ import queryString from 'query-string';
 import api from './api';
 import molfile from './chem/molfile';
 import smiles from './chem/smiles';
+import toolbarTypeMap from './ui/state/toolbar/toolbartypes';
 import * as structformat from './ui/data/convert/structformat';
 
 import ui from './ui';
@@ -37,16 +38,61 @@ function saveSmiles() {
 		.catch(() => smiles.stringify(struct));
 }
 
-function getMolfile() {
+/**
+ * @param {boolean} v3000 - whether to retrieve the molecule in v3000 format. Default is v2000
+ * @returns {string}
+ */
+function getMolfile(v3000) {
 	return molfile.stringify(ketcher.editor.struct(),
-		{ ignoreErrors: true });
+		{ ignoreErrors: true, v3000 });
+}
+
+/**
+ * Exports representation of the current sketch in Ketcher, in the specified format.
+ * @param format
+ * @returns {Promise<string>}
+ */
+function getRepresentationInFormat(format) {
+	const input_mol = molfile.stringify(ketcher.editor.struct(), {
+		ignoreErrors: true
+	});
+	// TODO: Remove Plexus usage for converting between formats
+	return new Promise((resolve) => {
+		$.ajax({
+			type: "POST",
+			url: '/plexus/rest-v0/util/calculate/stringMolExport',
+			data: { structure: input_mol, parameters: format }
+		}).done(function updateInputCompound(representation) {
+			resolve(representation);
+		}).fail(function onError() {
+			throw new Error('Could not perform the conversion');
+		});
+	});
+}
+
+function getSvg() {
+	const mol = Module.get_mol(molfile.stringify(ketcher.editor.struct(), {
+		ignoreErrors: true
+	}));
+	return mol.get_svg();
 }
 
 function setMolecule(molString) {
-	if (!(typeof molString === 'string'))
+	if (!(typeof molString === 'string')) {
 		return;
-	ketcher.ui.load(molString, {
-		rescale: true
+	}
+	$.ajax({
+		type: "POST",
+		url: '/plexus/rest-v0/util/calculate/stringMolExport',
+		data: { structure: molString, parameters: 'mol:V3' }
+	}).done(function updateInputCompound(molfile) {
+		ketcher.ui.load(molfile, {
+			rescale: true
+		});
+	}).fail(function onError() {
+		ketcher.ui.load(molString, {
+			rescale: true
+		});
 	});
 }
 
@@ -70,6 +116,14 @@ function showMolfile(clientArea, molString, options) {
 	render.update();
 	// not sure we need to expose guts
 	return render;
+}
+
+/**
+ * Sets the toolbar type for Ketcher
+ * @param toolbarType {toolbarTypeMap}
+ */
+function setToolbarType(toolbarType) {
+	ketcher.ui.changeToolbarType(toolbarType);
 }
 
 // TODO: replace window.onload with something like <https://github.com/ded/domready>
@@ -103,9 +157,12 @@ const buildInfo = {
 
 const ketcher = module.exports = Object.assign({ // eslint-disable-line no-multi-assign
 	getSmiles,
+	getSvg,
 	saveSmiles,
 	getMolfile,
+	getRepresentationInFormat,
 	setMolecule,
+	setToolbarType,
 	addFragment,
 	showMolfile
 }, buildInfo);
