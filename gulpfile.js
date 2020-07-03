@@ -124,14 +124,8 @@ gulp.task('clean', getTask('./gulp/clean', {
 	pkgName: pkg.name
 }));
 
-<<<<<<< HEAD
-gulp.task('pre-commit', gulp.series('lint', 'check-epam-email', 'check-deps-exact'));
 gulp.task('assets', gulp.series('copy', 'help'));
 gulp.task('code', gulp.series('style', 'script', 'html'));
-=======
-gulp.task('assets', ['copy', 'help']);
-gulp.task('code', ['style', 'script', 'html']);
->>>>>>> 49b11eac0224b9c1257a565a71e4ba4a18f202b4
 
 /*== dev ==*/
 gulp.task('serve', gulp.series('clean', 'style', 'html', 'assets', getTask('./gulp/dev-script', Object.assign({
